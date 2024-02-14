@@ -35,8 +35,8 @@ WITH decade AS (
 )
 
 SELECT decade_start, 
-ROUND(SUM(SO)/CAST(SUM(G) AS DECIMAL),2) AS strikeouts_per_game, 
-ROUND(SUM(HR)/CAST(SUM(G) AS DECIMAL),2) AS homeruns_per_game
+	ROUND(SUM(SO)/CAST(SUM(G) AS DECIMAL),2) AS strikeouts_per_game, 
+	ROUND(SUM(HR)/CAST(SUM(G) AS DECIMAL),2) AS homeruns_per_game
 FROM teams
 LEFT JOIN decade
 ON yearID BETWEEN decade_start AND decade_end
@@ -45,3 +45,35 @@ GROUP BY decade_start
 ORDER BY decade_start DESC;
 --Number of strikeouts and homeruns per game generally increase each decade.
 
+-- 4. Find the player who had the most success stealing bases in 2016, where success is measured as the percentage of stolen base attempts which are successful.
+-- (A stolen base attempt results either in a stolen base or being caught stealing.)
+-- Consider only players who attempted at least 20 stolen bases.
+-- Report the players' names, number of stolen bases, number of attempts, and stolen base percentage.
+WITH stolen_bases_2016 AS (
+SELECT playerID, 
+	COALESCE(SUM(SB),0) AS stolen_base, 
+	COALESCE(SUM(CS),0) AS caught_stealing, 
+	COALESCE(SUM(SB),0) + COALESCE(SUM(CS),0) AS stolen_base_attempts
+FROM batting
+WHERE yearID = 2016
+GROUP BY playerID)
+
+SELECT namefirst, 
+	namelast, 
+	stolen_base, 
+	caught_stealing, 
+	stolen_base_attempts, 
+	stolen_base*1.0/(stolen_base + caught_stealing) AS stolen_base_pct
+FROM people
+LEFT JOIN stolen_bases_2016
+USING(playerID)
+WHERE stolen_base_attempts >=20
+ORDER BY stolen_base_pct DESC
+-- Chris Owings had the most success stealing bases in 2016 with a stolen base % of 91.3%.
+
+-- 5. From 1970 to 2016, what is the largest number of wins for a team that did not win the world series?
+-- What is the smallest number of wins for a team that did win the world series?
+-- Doing this will probably result in an unusually small number of wins for a world series champion; determine why this is the case.
+-- Then redo your query, excluding the problem year.
+-- How often from 1970 to 2016 was it the case that a team with the most wins also won the world series?
+-- What percentage of the time?
