@@ -68,7 +68,7 @@ FROM people
 LEFT JOIN stolen_bases_2016
 USING(playerID)
 WHERE stolen_base_attempts >=20
-ORDER BY stolen_base_pct DESC
+ORDER BY stolen_base_pct DESC;
 -- Chris Owings had the most success stealing bases in 2016 with a stolen base % of 91.3%.
 
 -- 5. From 1970 to 2016, what is the largest number of wins for a team that did not win the world series?
@@ -77,3 +77,21 @@ ORDER BY stolen_base_pct DESC
 -- Then redo your query, excluding the problem year.
 -- How often from 1970 to 2016 was it the case that a team with the most wins also won the world series?
 -- What percentage of the time?
+SELECT yearid, name, W AS wins
+FROM teams
+WHERE WSwin = 'N'
+	AND yearid BETWEEN 1970 AND 2016
+ORDER BY wins DESC;
+-- Between 1970 and 2016, the largest number of wins in a season acheived by a team that did not win the world series was the 2001 Seattle Mariners.
+
+SELECT yearid, name, W AS wins
+FROM teams
+WHERE WSwin = 'Y'
+	AND yearid BETWEEN 1970 AND 2016
+	AND yearid != 1981
+ORDER BY wins;
+-- The smallest number of wins for a team that won the world series was the LA Dodgers with just 63 wins in 1981, but this was because of the 1981 baseball players' strike.
+-- Besides 1981, the smallest number of wins for a team that won the world series was the St. Louis Cardinals with 83 wins in 2006.
+
+-- 6. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)?
+-- Give their full name and the teams that they were managing when they won the award.
