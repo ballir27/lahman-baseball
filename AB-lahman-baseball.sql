@@ -4,7 +4,7 @@
 -- Which Vanderbilt player earned the most money in the majors?
 SELECT namefirst, namelast, SUM(salary) AS total_salary
 FROM people
-INNER JOIN collegeplaying
+INNER JOIN (SELECT playerid, schoolid FROM collegeplaying GROUP BY playerid, schoolid)
 USING(playerid)
 INNER JOIN salaries
 USING(playerid)
@@ -45,7 +45,8 @@ GROUP BY decade_start
 ORDER BY decade_start DESC;
 --Number of strikeouts and homeruns per game generally increase each decade.
 
--- 4. Find the player who had the most success stealing bases in 2016, where success is measured as the percentage of stolen base attempts which are successful.
+-- 4. Find the player who had the most success stealing bases in 2016, where success is measured 
+-- as the percentage of stolen base attempts which are successful.
 -- (A stolen base attempt results either in a stolen base or being caught stealing.)
 -- Consider only players who attempted at least 20 stolen bases.
 -- Report the players' names, number of stolen bases, number of attempts, and stolen base percentage.
@@ -63,7 +64,7 @@ SELECT namefirst,
 	stolen_base, 
 	caught_stealing, 
 	stolen_base_attempts, 
-	stolen_base*1.0/(stolen_base + caught_stealing) AS stolen_base_pct
+	ROUND(stolen_base*1.0/(stolen_base + caught_stealing),3) AS stolen_base_pct
 FROM people
 LEFT JOIN stolen_bases_2016
 USING(playerID)
@@ -118,7 +119,7 @@ SELECT
 FROM most_win_team AS m
 INNER JOIN ws_win_team AS w
 USING(yearid)
-WHERE yearid BETWEEN 1970 AND 2016)
+WHERE yearid BETWEEN 1970 AND 2016);
 -- Only 12 teams between 1970 and 2016 won the most games in the season and also won the world series.
 -- This means only 26.1% of world series winners also won the most games in the same season.
 
@@ -159,4 +160,92 @@ USING(playerid);
 -- 7. Which pitcher was the least efficient in 2016 in terms of salary / strikeouts?
 -- Only consider pitchers who started at least 10 games (across all teams).
 -- Note that pitchers often play for more than one team in a season, so be sure that you are counting all stats for each player.
+WITH pitchers_2016 AS
+(
+	SELECT 
+		playerid, 
+		SUM(gs) AS games_started, 
+		SUM(so) AS strikeouts
+	FROM pitching
+	WHERE yearid = 2016
+	GROUP BY playerid
+	HAVING SUM(gs)>=10
+)
 
+SELECT 
+	namefirst ||' '|| namelast AS fullname, 
+	games_started, 
+	strikeouts, 
+	salary::int::money, 
+	(salary/strikeouts)::int::money AS salary_per_strikeout
+FROM pitchers_2016
+INNER JOIN salaries
+USING(playerid)
+INNER JOIN people
+USING(playerid)
+WHERE yearid = 2016
+ORDER BY salary_per_strikeout DESC;
+-- Matt Cain was the least efficient pitcher with a salary of $289,352.00/strikeout
+
+-- 8. Find all players who have had at least 3000 career hits.
+-- Report those players' names, total number of hits, and the year they were inducted into the hall of fame 
+-- (If they were not inducted into the hall of fame, put a null in that column.)
+-- Note that a player being inducted into the hall of fame is indicated by a 'Y' in the inducted column of the halloffame table.
+WITH player_total_hits AS(
+	SELECT playerid, SUM(H) AS total_hits
+	FROM batting
+	GROUP BY playerid
+	HAVING SUM(H)>=3000
+),
+
+hall_of_fame_inductees AS(
+	SELECT playerid, yearid
+	FROM halloffame
+	WHERE inducted = 'Y'
+)
+
+SELECT
+	namefirst ||' '|| namelast AS fullname,
+	total_hits,
+	hof.yearid AS year_hall_of_fame_inducted
+FROM player_total_hits
+INNER JOIN people
+USING(playerid)
+LEFT JOIN hall_of_fame_inductees AS hof
+USING(playerid)
+ORDER BY total_hits DESC;
+-- I actually didn't know Pete Rose was never inducted to the hall of fame. Now I know.
+
+-- 9. Find all players who had at least 1,000 hits for two different teams. Report those players' full names.
+WITH player_total_hits_by_team AS(
+	SELECT playerid, teamid, SUM(H) AS total_hits
+	FROM batting
+	GROUP BY playerid, teamid
+	HAVING SUM(H)>=1000
+),
+
+players_over_1000_twice AS(
+	SELECT DISTINCT(playerid)
+	FROM player_total_hits_by_team
+	INNER JOIN people
+	USING(playerid)
+	GROUP BY playerid
+	HAVING COUNT(playerid)>=2
+)
+
+SELECT namefirst ||' '|| namelast AS fullname
+FROM players_over_1000_twice
+INNER JOIN people
+USING(playerid);
+
+--Not sure why Ken Griffey shows up in the table when I do it this way without the 2nd CTE
+-- SELECT DISTINCT namefirst ||' '|| namelast AS fullname
+-- FROM player_total_hits_by_team
+-- INNER JOIN people
+-- USING(playerid)
+-- GROUP BY (namefirst ||' '|| namelast)
+-- HAVING COUNT(namefirst ||' '|| namelast)>=2;
+
+-- 10. Find all players who hit their career highest number of home runs in 2016. 
+-- Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. 
+-- Report the players' first and last names and the number of home runs they hit in 2016.
