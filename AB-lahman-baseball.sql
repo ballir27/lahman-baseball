@@ -238,7 +238,9 @@ FROM players_over_1000_twice
 INNER JOIN people
 USING(playerid);
 
---Not sure why Ken Griffey shows up in the table when I do it this way without the 2nd CTE
+-- Tried the below query without the 2nd CTE first, but got 15 instead of 14.
+-- It doesn't work because there is both a Ken Griffey Sr. and a Ken Griffey Jr. who got over 1000 hits for 1 team.
+
 -- SELECT DISTINCT namefirst ||' '|| namelast AS fullname
 -- FROM player_total_hits_by_team
 -- INNER JOIN people
@@ -249,3 +251,32 @@ USING(playerid);
 -- 10. Find all players who hit their career highest number of home runs in 2016. 
 -- Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. 
 -- Report the players' first and last names and the number of home runs they hit in 2016.
+WITH years_played AS
+(
+	SELECT playerid, 
+		namefirst, 
+		namelast, 
+		DATE_PART('year', CAST(debut AS date)) AS debut_year, 
+		DATE_PART('year', finalgame::date) AS final_year,
+		DATE_PART('year', finalgame::date) - DATE_PART('year', debut::date) +1 AS num_years_played
+	FROM people
+	WHERE DATE_PART('year', finalgame::date) - DATE_PART('year', debut::date) +1 >=10
+),
+
+max_hr_year AS
+(
+	SELECT playerid, MAX(hr) AS max_hr
+	FROM batting
+	GROUP BY playerid
+	HAVING MAX(hr)>=1
+)
+
+SELECT namefirst, namelast, max_hr AS max_hr_2016
+FROM years_played
+INNER JOIN max_hr_year
+USING(playerid)
+INNER JOIN batting
+ON batting.playerid = max_hr_year.playerid
+	AND batting.hr = max_hr_year.max_hr
+WHERE batting.yearid = 2016
+ORDER BY max_hr DESC
